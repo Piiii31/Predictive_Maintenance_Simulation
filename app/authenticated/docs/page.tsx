@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { HardDrive, Search, Info } from "lucide-react";
 import { Button } from "@nextui-org/button";
 import { Card } from "@nextui-org/card";
@@ -8,6 +8,7 @@ import { Divider } from "@nextui-org/divider";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@nextui-org/modal";
 import { Tabs, Tab } from "@nextui-org/tabs";
 import { Input } from "@nextui-org/input";
+import { getRole } from "@/app/api/getRole";
 
 interface DriveData {
   id: string;
@@ -22,18 +23,34 @@ interface DriveData {
   pod_slot_num: number;
   is_legacy_format: boolean;
   date: string;
-  floor?: string; // Make floor optional
+  floor?: string;
 }
 
 const CompactDriveView = () => {
-  const numberOfFloors = 4; // Set the number of floors here
-  const minDrivesPerFloor = 1; // Minimum drives on any floor
-  const maxDrivesPerFloor = 5; // Maximum drives on any floor
+  const numberOfFloors = 4;
+  const minDrivesPerFloor = 1;
+  const maxDrivesPerFloor = 5;
+  
+  const [userRole, setUserRole] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
-  // Generate initial floors only once
+  // Fetch user role on component mount
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const { role, error } = await getRole();
+      if (!error) {
+        setUserRole(role.toLowerCase());
+      }
+      setLoading(false);
+    };
+    fetchUserRole();
+  }, []);
+
+  // Generate initial floors
   const generateFloors = () =>
     Array.from({ length: numberOfFloors }, (_, floorIndex) => ({
       name: `Floor ${floorIndex + 1}`,
+      id: `floor${floorIndex + 1}`,
       drives: Array.from(
         {
           length: Math.floor(
@@ -46,7 +63,7 @@ const CompactDriveView = () => {
           serial_number: `SN-${floorIndex + 1}-${driveIndex + 1}`,
           model: `Model-${floorIndex + 1}`,
           capacity_bytes: 12000138625024,
-          failure: Math.random() < 0.5, // Random failure status
+          failure: Math.random() < 0.5,
           datacenter: `DC-${floorIndex + 1}`,
           cluster_id: `CLU-${floorIndex + 1}`,
           vault_id: `V-${floorIndex + 1}`,
@@ -54,24 +71,33 @@ const CompactDriveView = () => {
           pod_slot_num: driveIndex + 1,
           is_legacy_format: Math.random() > 0.5,
           date: "2024-01-06",
+          floor: `floor${floorIndex + 1}`
         })
       ),
     }));
 
-  const [floors, setFloors] = useState(generateFloors); // Store floors in state
+  const [floors, setFloors] = useState(generateFloors);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDrive, setSelectedDrive] = useState<DriveData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
 
+  // Filter floors based on user role
+  const accessibleFloors = useMemo(() => {
+    if (userRole === "admin" || userRole === "co-admin") {
+      return floors;
+    }
+    return floors.filter(floor => floor.id === userRole);
+  }, [floors, userRole]);
+
   const filteredFloors = useMemo(() => {
-    return floors.map((floor) => ({
+    return accessibleFloors.map((floor) => ({
       ...floor,
       drives: floor.drives.filter((drive) =>
         drive.cluster_id.toLowerCase().includes(searchQuery.toLowerCase())
       ),
     }));
-  }, [floors, searchQuery]);
+  }, [accessibleFloors, searchQuery]);
 
   const formatCapacity = (bytes: number): string => {
     const terabytes = bytes / 1099511627776;
@@ -86,10 +112,16 @@ const CompactDriveView = () => {
     });
   };
 
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
+
   return (
     <div className="w-full mx-auto px-4">
       <div className="flex justify-between items-center p-4">
-        <h1 className="text-2xl font-semibold">Drive Overview</h1>
+        <h1 className="text-2xl font-semibold">
+          Drive Overview {userRole !== "admin" && userRole !== "co-admin" && `- ${userRole.toUpperCase()}`}
+        </h1>
         <Input
           className="max-w-xs"
           placeholder="Search by Cluster ID..."

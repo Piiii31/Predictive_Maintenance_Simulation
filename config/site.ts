@@ -1,36 +1,61 @@
-import { Home, FolderKanban, CheckSquare, Users, BarChart2, Gift, DollarSign, Settings ,LayoutDashboard} from 'lucide-react';
+import {
+  Home,
+  FolderKanban,
+  CheckSquare,
+  Users,
+  BarChart2,
+  Gift,
+  DollarSign,
+  Settings,
+  LayoutDashboard,
+} from 'lucide-react';
 
-export type SiteConfig = typeof siteConfig;
+// Define the type for navigation items
+interface NavItem {
+  label: string;
+  href: string;
+  icon?: React.ComponentType; // Ensure icons are React components
+}
 
-export const siteConfig = {
+interface SiteConfig {
+  name: string;
+  description: string;
+  navItems: NavItem[];
+  navMenuItems: NavItem[];
+  links: {
+    github: string;
+    twitter: string;
+    docs: string;
+    discord: string;
+    sponsor: string;
+  };
+}
+
+export const siteConfig: SiteConfig = {
   name: "Next.js + NextUI",
   description: "Make beautiful websites regardless of your design experience.",
   navItems: [
     {
       label: "Dashboard",
       href: "/",
-      icon: LayoutDashboard, // Add icon
+      icon: LayoutDashboard,
     },
     {
       label: "Management",
-      href: "/docs",
-      icon: FolderKanban, // Add icon
+      href: "/authenticated/docs",
+      icon: FolderKanban,
     },
     {
-      label: "Pricing",
-      href: "/pricing",
-      icon: DollarSign, // Add icon
+      label: "Authorization",
+      href: "/authenticated/Authorization",
+      icon: Users,
     },
     {
-      label: "Blog",
-      href: "/blog",
-      icon: BarChart2, // Add icon
+      label: "Logger",
+      href: "/authenticated/Mouchard",
+      icon: BarChart2,
     },
-    {
-      label: "About",
-      href: "/about",
-      icon: Users, // Add icon
-    },
+   
   ],
   navMenuItems: [
     {

@@ -8,9 +8,9 @@ import { Chip } from "@nextui-org/chip";
 import { Pie } from 'react-chartjs-2';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
-import { Floor } from "@/types";
 import { floorData } from "@/config/data";
 import FloorOverview from "@/components/FloorOverview";
+
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
@@ -125,6 +125,7 @@ export default function Home() {
     <section className="grid grid-cols-12 gap-4">
       {/* Left Column */}
       <div className="col-span-8 space-y-4 flex-row">
+     
         <div className="flex space-x-4">
         <Card className="bg-default-100 w-full max-w-sm">
           <CardHeader className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+'use client'
 import {
   Navbar as NextUINavbar,
   NavbarContent,
@@ -14,7 +15,7 @@ import { Input } from "@nextui-org/input";
 import { link as linkStyles } from "@nextui-org/theme";
 import NextLink from "next/link";
 import clsx from "clsx";
-import { Home, FolderKanban, CheckSquare, Users, BarChart2, Gift, DollarSign, Settings } from 'lucide-react';
+import { Home, FolderKanban, CheckSquare, Users, BarChart2, Gift, DollarSign, Settings, LogOut } from 'lucide-react';
 
 import { siteConfig } from "@/config/site";
 import { ThemeSwitch } from "@/components/theme-switch";
@@ -26,8 +27,15 @@ import {
   SearchIcon,
   Logo,
 } from "@/components/icons";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useRouter } from 'next/navigation';
+import { useAuth } from "@/hooks/useAuth";
 
 export const Sidebar = () => {
+  const { user } = useAuth();
+  const userString = user?.email || '';
+  const router = useRouter();
   const searchInput = (
     <Input
       aria-label="Search"
@@ -51,6 +59,15 @@ export const Sidebar = () => {
 
   
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
   return (
     <NextUINavbar maxWidth="xl" position="sticky" className="h-screen w-80 p-4 border-r border-default-200">
       <div className="flex flex-col w-full gap-10">
@@ -60,6 +77,7 @@ export const Sidebar = () => {
             <NextLink className="flex justify-start items-center gap-2" href="/">
               <Logo />
               <p className="font-bold text-inherit text-lg">DT MANAGEMENT</p>
+              
             </NextLink>
           </NavbarBrand>
           <ThemeSwitch />
@@ -103,17 +121,7 @@ export const Sidebar = () => {
         {/* Bottom Section with Social Links and Sponsor */}
         <NavbarContent className="w-full flex-col gap-4 mt-10">
           {/* Social Links */}
-          <NavbarItem className="flex justify-center w-full gap-4">
-            <Link isExternal aria-label="Twitter" href={siteConfig.links.twitter}>
-              <TwitterIcon className="text-default-500 w-5 h-5" />
-            </Link>
-            <Link isExternal aria-label="Discord" href={siteConfig.links.discord}>
-              <DiscordIcon className="text-default-500 w-5 h-5" />
-            </Link>
-            <Link isExternal aria-label="Github" href={siteConfig.links.github}>
-              <GithubIcon className="text-default-500 w-5 h-5" />
-            </Link>
-          </NavbarItem>
+         
 
           {/* Sponsor Button */}
           <NavbarItem className="w-full">
@@ -128,6 +136,18 @@ export const Sidebar = () => {
               Sponsor
             </Button>
           </NavbarItem>
+          {/* Sign Out Button */}
+          <NavbarItem className="w-full">
+  <Button
+    className="w-full text-sm font-normal text-default-600 bg-default-100"
+    onClick={handleLogout}
+    startContent={<LogOut className="text-default-500" size={18} />}
+    variant="flat"
+  >
+    {user && ` ${userString.split('@')[0]}`}
+  </Button>
+</NavbarItem>
+
         </NavbarContent>
 
         {/* Mobile Menu Toggle */}
