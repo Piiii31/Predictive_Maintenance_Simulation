@@ -5,12 +5,11 @@ import clsx from "clsx";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export  default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    // Ensure the page is re-rendered after user state is fetched
     setIsLoaded(true);
   }, [router]);
 
@@ -23,16 +22,19 @@ export  default function AuthLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <html suppressHydrationWarning lang="en">
+    <html suppressHydrationWarning lang="en" className="dark">
       <head />
       <body
         className={clsx(
           "min-h-screen bg-background font-sans antialiased",
+          " dark:text-white", // Added dark mode styles
           fontSans.variable
         )}
       >
-        <Providers themeProps={{ attribute: "class", defaultTheme: "dark", enableSystem: false }}>
-          <main className="min-h-screen flex flex-col">{children}</main>
+        <Providers>
+          <section className="dark">
+            <main className="min-h-screen flex flex-col">{children}</main>
+          </section>
         </Providers>
       </body>
     </html>

@@ -32,6 +32,7 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@/hooks/useAuth";
 
+
 export const Sidebar = () => {
   const { user } = useAuth();
   const userString = user?.email || '';
