@@ -1,240 +1,331 @@
 "use client";
-import React from "react";
-import { Server, HardDrive, AlertCircle, BarChart2 } from "lucide-react";
+import React, { useEffect, useCallback, useMemo } from "react";
+import { Server, HardDrive, AlertTriangle, RefreshCw } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@nextui-org/card";
 import { Divider } from "@nextui-org/divider";
 import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from "@nextui-org/table";
-import { Chip } from "@nextui-org/chip";
-import { Pie } from 'react-chartjs-2';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
-import { floorData } from "@/config/data";
-import FloorOverview from "@/components/FloorOverview";
 
+import { Doughnut, Bar } from "react-chartjs-2";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from "chart.js";
+import { Button } from "@nextui-org/button";
+import { Spinner } from "@nextui-org/spinner";
+import { useTheme } from "next-themes";
+import { useStore } from "@/lib/zustand";
+import { Select, SelectItem } from "@heroui/select";
 
-// Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
-
-
-
-
-// Define props for the FloorOverview component
-
+interface DriveData {
+  floor: number;
+  model: string;
+  serial_number: string;
+  capacity_bytes: number;
+  dates: string;
+  status: "Normal" | "Anomalous";
+}
 
 export default function Home() {
-  const hardDriveStatusData = {
-    labels: floorData.map((floor) => `Floor ${floor.floor}`),
-    datasets: [
-      {
-        label: 'Good Drives',
-        data: floorData.map((floor) => {
-          return floor.clusters.reduce(
-            (acc, cluster) =>
-              acc + cluster.vaults.reduce((sum, vault) => sum + vault.drives.good, 0),
-            0
-          );
-        }),
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 1,
-      },
-      {
-        label: 'Dead Drives',
-        data: floorData.map((floor) => {
-          return floor.clusters.reduce(
-            (acc, cluster) =>
-              acc + cluster.vaults.reduce((sum, vault) => sum + vault.drives.dead, 0),
-            0
-          );
-        }),
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        borderWidth: 1,
-      },
-    ],
-  };
+  const { theme } = useTheme();
+  const { 
+    selectedPeriod,
+    setSelectedPeriod,
+    apiResponse,
+    setApiResponse,
+    hasLoadedSavedData,
+    setHasLoadedSavedData,
+    loading,
+    setLoading
+  } = useStore();
 
-  const datacenterHealthData = {
-    labels: ["Good Drives", "Dead Drives"],
-    datasets: [
-      {
-        label: "Datacenter Health",
-        data: [
-          floorData.reduce(
-            (acc, floor) =>
-              acc +
-              floor.clusters.reduce((sum, cluster) =>
-                sum + cluster.vaults.reduce((vaultSum, vault) => vaultSum + vault.drives.good, 0), 0),
-            0
-          ),
-          floorData.reduce(
-            (acc, floor) =>
-              acc +
-              floor.clusters.reduce((sum, cluster) =>
-                sum + cluster.vaults.reduce((vaultSum, vault) => vaultSum + vault.drives.dead, 0), 0),
-            0
-          ),
+  // Theme-aware colors
+  const themeColors = useMemo(() => ({
+    primary: theme === 'dark' ? '#006FEE' : '#0070F3',
+    danger: theme === 'dark' ? '#F31260' : '#FF1A75',
+    background: theme === 'dark' ? '#18181b' : '#ffffff'
+  }), [theme]);
+
+  // Data loading with error handling
+  const loadInitialData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const storedData = localStorage.getItem("driveData");
+      
+      if (storedData) {
+        const parsedData = JSON.parse(storedData);
+        if (!Array.isArray(parsedData)) throw new Error('Invalid data format');
+        setApiResponse(parsedData);
+      }
+    } catch (error) {
+      console.error('Failed to load stored data:', error);
+      localStorage.removeItem("driveData");
+    } finally {
+      setHasLoadedSavedData(true);
+      setLoading(false);
+    }
+  }, [setApiResponse, setHasLoadedSavedData, setLoading]);
+
+  // Initial load and auto-refresh
+  useEffect(() => {
+    if (!hasLoadedSavedData) loadInitialData();
+    
+    const interval = setInterval(loadInitialData, 300000);
+    return () => clearInterval(interval);
+  }, [hasLoadedSavedData, loadInitialData]);
+
+  // Filter data based on selected period
+  const filteredData = useMemo(() => {
+    if (!selectedPeriod) return apiResponse;
+    
+    const [year, quarter] = selectedPeriod.split(' - Q');
+    return apiResponse.filter((item: DriveData) => {
+      const date = new Date(item.dates);
+      return (
+        date.getFullYear() === parseInt(year) &&
+        Math.floor(date.getMonth() / 3) + 1 === parseInt(quarter)
+      );
+    });
+  }, [apiResponse, selectedPeriod]);
+
+  // Process data for visualizations
+  const { statusData, healthData, summary } = useMemo(() => {
+    const floors = Array.from(new Set(filteredData.map(item => item.floor))).sort((a, b) => a - b);
+    const normal = filteredData.filter(item => item.status === "Normal").length;
+    const anomalous = filteredData.filter(item => item.status === "Anomalous").length;
+    const total = filteredData.length;
+
+    // Model distribution
+    const modelCounts = filteredData.reduce((acc: Record<string, number>, item) => {
+      acc[item.model] = (acc[item.model] || 0) + 1;
+      return acc;
+    }, {});
+    const topModels = Object.entries(modelCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5);
+
+    return {
+      statusData: {
+        labels: floors.map(floor => `Floor ${floor}`),
+        datasets: [
+          {
+            label: 'Normal Drives',
+            data: floors.map(floor => 
+              filteredData.filter(item => 
+                item.floor === floor && item.status === "Normal"
+              ).length
+            ),
+            backgroundColor: `${themeColors.primary}40`,
+            borderColor: themeColors.primary,
+            borderWidth: 1,
+          },
+          {
+            label: 'Anomalous Drives',
+            data: floors.map(floor => 
+              filteredData.filter(item => 
+                item.floor === floor && item.status === "Anomalous"
+              ).length
+            ),
+            backgroundColor: `${themeColors.danger}40`,
+            borderColor: themeColors.danger,
+            borderWidth: 1,
+          },
         ],
-        backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 99, 132, 0.2)'],
-        borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
-        borderWidth: 1,
       },
-    ],
-  };
+      healthData: {
+        labels: ["Normal", "Anomalous"],
+        datasets: [{
+          data: [normal, anomalous],
+          backgroundColor: [`${themeColors.primary}40`, `${themeColors.danger}40`],
+          borderColor: [themeColors.primary, themeColors.danger],
+          borderWidth: 1,
+        }],
+      },
+      summary: {
+        total,
+        normal,
+        anomalous,
+        topModels,
+        anomalyRate: total > 0 ? (anomalous / total * 100) : 0
+      }
+    };
+  }, [filteredData, themeColors]);
 
-  const recentAlerts = [
-    {
-      key: "1",
-      floor: 1,
-      cluster: "Cluster A",
-      hardDrive: "Drive 1",
-      severity: "Critical",
-      message: "High temperature detected",
-    },
-    {
-      key: "2",
-      floor: 2,
-      cluster: "Cluster C",
-      hardDrive: "Drive 3",
-      severity: "Warning",
-      message: "Read errors increasing",
-    },
-  ];
+  // Generate period options for select
+  const periodOptions = useMemo(() => {
+    const options = [];
+    const currentYear = new Date().getFullYear();
+    for (let year = currentYear; year >= 2020; year--) {
+      for (let quarter = 1; quarter <= 4; quarter++) {
+        options.push(`${year} - Q${quarter}`);
+      }
+    }
+    return options;
+  }, []);
 
-  const predictiveInsights = [
-    {
-      key: "1",
-      floor: 1,
-      cluster: "Cluster A",
-      hardDrive: "Drive 2",
-      failureProbability: "45%",
-      recommendedAction: "Monitor",
-    },
-    {
-      key: "2",
-      floor: 2,
-      cluster: "Cluster D",
-      hardDrive: "Drive 5",
-      failureProbability: "70%",
-      recommendedAction: "Replace",
-    },
-  ];
+  // Formatting helpers
+  const formatCapacity = useCallback((bytes: number): string => {
+    return `${(bytes / 10**12).toFixed(1)} TB`;
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spinner size="lg" label="Loading Drive Data..." />
+      </div>
+    );
+  }
 
   return (
-    <section className="grid grid-cols-12 gap-4">
-      {/* Left Column */}
-      <div className="col-span-8 space-y-4 flex-row">
-     
-        <div className="flex space-x-4">
-        <Card className="bg-default-100 w-full max-w-sm">
-          <CardHeader className="flex items-center gap-2">
-            <HardDrive size={20} />
-            <h2 className="text-lg font-semibold">Hard Drive Health Summary</h2>
-          </CardHeader>
-          <Divider />
-          <CardBody className="h-[200px] ">
-            <Bar
-              data={hardDriveStatusData}
-              options={{
-                maintainAspectRatio: false,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                  },
-                },
-              }}
-            />
-          </CardBody>
-        </Card>
-
-        <Card className="bg-default-100 w-full max-w-sm">
-          <CardHeader className="flex items-center gap-2">
-            <Server size={20} />
-            <h2 className="text-lg font-semibold">Datacenter Health Summary</h2>
-          </CardHeader>
-          <Divider />
-          <CardBody>
-            <Pie data={datacenterHealthData} />
-          </CardBody>
-        </Card>
+    <div className="p-6 space-y-6">
+      {/* Header Section */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Drive Health Monitor</h1>
+        <div className="flex gap-4 items-center mb-20">
+          
+          <Button 
+            color="primary" 
+            variant="ghost" 
+            startContent={<RefreshCw size={18} />}
+            onPress={loadInitialData}
+          >
+            Refresh
+          </Button>
         </div>
-
-        <Card className="bg-default-100">
-          <CardHeader className="flex items-center gap-2">
-            <AlertCircle size={20} />
-            <h2 className="text-lg font-semibold">Recent Alerts</h2>
-          </CardHeader>
-          <Divider />
-          <CardBody>
-            <Table aria-label="Recent Alerts">
-              <TableHeader>
-                <TableColumn>Floor</TableColumn>
-                <TableColumn>Cluster</TableColumn>
-                <TableColumn>Hard Drive</TableColumn>
-                <TableColumn>Severity</TableColumn>
-                <TableColumn>Message</TableColumn>
-              </TableHeader>
-              <TableBody items={recentAlerts}>
-                {(alert) => (
-                  <TableRow key={alert.key}>
-                    <TableCell>{alert.floor}</TableCell>
-                    <TableCell>{alert.cluster}</TableCell>
-                    <TableCell>{alert.hardDrive}</TableCell>
-                    <TableCell>
-                      <Chip variant="flat" color={alert.severity === "Critical" ? "danger" : "warning"}>
-                        {alert.severity}
-                      </Chip>
-                    </TableCell>
-                    <TableCell>{alert.message}</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
-
-        <Card className="bg-default-100">
-          <CardHeader className="flex items-center gap-2">
-            <BarChart2 size={20} />
-            <h2 className="text-lg font-semibold">Predictive Insights</h2>
-          </CardHeader>
-          <Divider />
-          <CardBody>
-            <Table aria-label="Predictive Insights">
-              <TableHeader>
-                <TableColumn>Floor</TableColumn>
-                <TableColumn>Cluster</TableColumn>
-                <TableColumn>Hard Drive</TableColumn>
-                <TableColumn>Failure Probability</TableColumn>
-                <TableColumn>Recommended Action</TableColumn>
-              </TableHeader>
-              <TableBody items={predictiveInsights}>
-                {(insight) => (
-                  <TableRow key={insight.key}>
-                    <TableCell>{insight.floor}</TableCell>
-                    <TableCell>{insight.cluster}</TableCell>
-                    <TableCell>{insight.hardDrive}</TableCell>
-                    <TableCell>
-                    <Chip variant="flat" color={insight.failureProbability === "Critical" ? "danger" : "warning"}>
-                      {insight.failureProbability}
-                    </Chip>
-                      </TableCell>
-                    <TableCell>{insight.recommendedAction}</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
       </div>
 
-      {/* Right Column */}
-      <div className="col-span-4 space-y-4">
-  {floorData.map((floor, index) => (
-    <FloorOverview key={index} floor={floor} />
-  ))}
-</div>
-    </section>
+      {/* Main Content */}
+      <section className="grid grid-cols-12 gap-6">
+        {/* Left Column */}
+        <div className="col-span-8 space-y-6">
+          {/* Health Charts */}
+          <div className="grid grid-cols-2 gap-6">
+            <Card className="p-4">
+              <CardHeader className="pb-2">
+                <h3 className="font-semibold">Drive Health by Floor</h3>
+              </CardHeader>
+              <CardBody className="h-64">
+                <Bar
+                  data={statusData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                      x: { stacked: true },
+                      y: { beginAtZero: true }
+                    }
+                  }}
+                />
+              </CardBody>
+            </Card>
+
+            <Card className="p-4">
+              <CardHeader className="pb-2">
+                <h3 className="font-semibold">Health Distribution</h3>
+              </CardHeader>
+              <CardBody className="h-64">
+                <Doughnut
+                  data={healthData}
+                  options={{
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { position: 'bottom' }
+                    }
+                  }}
+                />
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Anomalous Drives Table */}
+          <Card className="p-4">
+            <CardHeader className="pb-2">
+              <h3 className="font-semibold">Action Required</h3>
+            </CardHeader>
+            <Divider />
+            <CardBody>
+              <Table aria-label="Anomalous Drives">
+                <TableHeader>
+                  <TableColumn>Floor</TableColumn>
+                  <TableColumn>Model</TableColumn>
+                  <TableColumn>Serial</TableColumn>
+                  <TableColumn>Capacity</TableColumn>
+                  <TableColumn>Last Check</TableColumn>
+                  <TableColumn>Action</TableColumn>
+                </TableHeader>
+                <TableBody>
+                  {filteredData
+                    .filter(item => item.status === 'Anomalous')
+                    .map(item => (
+                      <TableRow key={item.serial_number}>
+                        <TableCell>{item.floor}</TableCell>
+                        <TableCell>{item.model}</TableCell>
+                        <TableCell className="font-mono">{item.serial_number}</TableCell>
+                        <TableCell>{formatCapacity(item.capacity_bytes)}</TableCell>
+                        <TableCell>{new Date(item.dates).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Button size="sm" color="danger" variant="flat">
+                            Replace
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </CardBody>
+          </Card>
+        </div>
+
+        {/* Right Column */}
+        <div className="col-span-4 space-y-6">
+          {/* Model Distribution */}
+          <Card className="p-4">
+            <CardHeader className="pb-2">
+              <h3 className="font-semibold">Top Drive Models</h3>
+            </CardHeader>
+            <Divider />
+            <CardBody className="h-48">
+              <Bar
+                data={{
+                  labels: summary.topModels.map(([model]) => model),
+                  datasets: [{
+                    label: 'Count',
+                    data: summary.topModels.map(([,count]) => count),
+                    backgroundColor: themeColors.primary,
+                    borderColor: themeColors.primary,
+                    borderWidth: 1
+                  }]
+                }}
+                options={{
+                  indexAxis: 'y',
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    x: { beginAtZero: true },
+                    y: { ticks: { autoSkip: false } }
+                  }
+                }}
+              />
+            </CardBody>
+          </Card>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="p-4 bg-content1">
+              <div className="space-y-1">
+                <p className="text-sm text-foreground-500">Total Drives</p>
+                <p className="text-2xl font-bold">{summary.total}</p>
+              </div>
+            </Card>
+            <Card className="p-4 bg-danger-50/35">
+              <div className="space-y-1">
+                <p className="text-sm text-foreground-600">Anomaly Rate</p>
+                <p className="text-2xl font-bold text-danger">
+                  {summary.anomalyRate.toFixed(1)}%
+                </p>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

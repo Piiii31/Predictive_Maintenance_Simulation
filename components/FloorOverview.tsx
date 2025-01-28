@@ -12,8 +12,6 @@ const FloorOverview: React.FC<FloorOverviewProps> = ({ floor }) => {
     (acc, cluster) => {
       cluster.vaults.forEach((vault) => {
         acc.good += vault.drives.good;
-        acc.warning += vault.drives.warning;
-        acc.critical += vault.drives.critical;
         acc.dead += vault.drives.dead;
       });
       return acc;
@@ -22,21 +20,18 @@ const FloorOverview: React.FC<FloorOverviewProps> = ({ floor }) => {
   );
 
   const barChartData = {
-    labels: ["Good", "Warning", "Critical", "Dead"],
+    labels: ["Good","Dead"],
     datasets: [
       {
         label: 'Drive Status',
-        data: [driveStatus.good, driveStatus.warning, driveStatus.critical, driveStatus.dead],
+        data: [driveStatus.good, driveStatus.dead],
         backgroundColor: [
           'rgba(75, 192, 192, 0.2)', 
-          'rgba(255, 206, 86, 0.2)', 
-          'rgba(255, 99, 132, 0.2)', 
+           
           'rgba(153, 102, 255, 0.2)', 
         ],
         borderColor: [
           'rgba(75, 192, 192, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(255, 99, 132, 1)',
           'rgba(153, 102, 255, 1)',
         ],
         borderWidth: 1,

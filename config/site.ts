@@ -7,6 +7,7 @@ import {
   Gift,
   DollarSign,
   Settings,
+  User,
   LayoutDashboard,
 } from 'lucide-react';
 
@@ -45,15 +46,16 @@ export const siteConfig: SiteConfig = {
       href: "/authenticated/docs",
       icon: FolderKanban,
     },
-    {
-      label: "Authorization",
-      href: "/authenticated/Authorization",
-      icon: Users,
-    },
+    
     {
       label: "Logger",
       href: "/authenticated/Mouchard",
       icon: BarChart2,
+    },
+    {
+      label: "About",
+      href: "/authenticated/About",
+      icon: User,
     },
    
   ],
