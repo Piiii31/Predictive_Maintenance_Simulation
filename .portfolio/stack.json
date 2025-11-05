@@ -1,0 +1,6 @@
+{
+  "frontend": ["Next.js", "React.js", "TypeScript", "Tailwind CSS"],
+  "backend": ["Node.js", "Express.js"],
+  "database": ["PostgreSQL"],
+  "others": ["Git", "Github", "Figma"]
+}
