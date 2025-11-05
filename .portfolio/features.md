@@ -1,9 +1,5 @@
-Modern responsive design with dark theme support
-Lightning-fast performance optimized for production
-SEO optimized with meta tags and structured data
-Mobile-first approach with smooth animations
-Interactive UI components with great UX
-Secure authentication and data handling
-Real-time updates and notifications
-Cross-browser compatibility
-Accessible design following WCAG guidelines
+Modern Web Framework: Developed using Next.js for server-side rendering and fast performance.
+UI Components: Styled with NextUI for a clean and responsive design.
+State Management: Utilizes Zustand for efficient and scalable state management.
+API Integration: Connects directly to the Predictive Maintenance Simulation API.
+Interactive User Experience: Provides a user-friendly interface to input year and quarter, fetch data, and view results in a tabular format.
