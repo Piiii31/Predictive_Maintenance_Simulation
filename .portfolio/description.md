@@ -1,9 +1,1 @@
-A comprehensive description of your project goes here.
-
-You can use **markdown** formatting to make it look nice:
-- Bold text
-- *Italic text*
-- Lists
-- And more!
-
-Explain what your project does, why you built it, and what problems it solves.
+This repository contains a user-friendly web interface for the Predictive Maintenance Simulation API. Built with Next.js, NextUI, and Zustand, the interface allows users to interact with the API seamlessly and visualize predictive maintenance results.
